@@ -30,7 +30,7 @@ function home(){const q=(new URLSearchParams(location.hash.split('?')[1]||'').ge
   body=`<section class="sec"><h2>‘${esc(q)}’ 검색 결과 ${res.length}곡</h2></section>${res.length?`<div class="grid">${res.map(s=>cardH(s)).join('')}</div>`:'<p class="empty">검색 결과가 없어요. 오른쪽 위 “곡 추가”로 직접 추가할 수 있어요.</p>'}`}
  else{const latest=[...S].sort((a,b)=>b.year-a.year||(a.id<b.id?-1:1)).slice(0,20);
   const mine=D.songs.length?rowH('내가 추가한 곡',D.songs):'';
-  body=recHome()+rowH('지금 많이 평가하는 곡',popular(),'#/all',true)+mine+GENRES.map(g=>{const l=S.filter(s=>s.genre===g);return rowH(g,l.slice(0,20),'#/all/'+encodeURIComponent(g))}).join('')}
+  body=adSlot('home_top')+recHome()+rowH('지금 많이 평가하는 곡',popular(),'#/all',true)+mine+GENRES.map(g=>{const l=S.filter(s=>s.genre===g);return rowH(g,l.slice(0,20),'#/all/'+encodeURIComponent(g))}).join('')}
  $('#app').innerHTML=`<div class="search"><input id="q" type="search" placeholder="곡 제목, 아티스트 검색" value="${esc(q)}" enterkeyhint="search"></div>
 <div class="toolbar"><a class="chip" href="#/all">전체 보기 (${S.length})</a><button class="chip" id="addBtn">＋ 곡 추가</button><button class="chip" id="demo">예시 평가 불러오기</button><button class="chip" id="reset">초기화</button></div>${body}
 <p class="note pad" style="margin-top:20px">평점은 영상의 70% 이상을 실제로 재생해야 남길 수 있습니다. 예시 평가·예시 사용자는 데모용 가상 데이터이며, 곡 목록은 실제 곡입니다.</p>`;
@@ -79,7 +79,7 @@ ${DEBUG?'<div class="card debug" style="margin:10px 0 0"><b>디버그 모드</b>
 <p class="note">편향 보정: 각 평가에서 그 평가자의 개인 평균을 뺀 값의 평균에 전체 평균(${f2(gm)})을 더해, 후하거나 짠 평가자의 영향을 줄였습니다.</p></div>
 <div class="card"><h3 style="margin-top:0">리뷰</h3>${rs.sort((a,b)=>b.ts-a.ts).map(r=>{const st=userStats(r.user,s.genre);
  const a=st.n<10?'평균 평가 수 부족':`평균 ${st.all.toFixed(1)}점`,g=(st.n<10||st.gn<5)?`${s.genre} 평균 평가 수 부족`:`${s.genre} 평균 ${st.g.toFixed(1)}점`;
- return `<div class="review"><div class="row" style="justify-content:space-between"><b style="flex:1"><a href="#/profile/${encodeURIComponent(r.user)}">${esc(r.user)}</a> ${exTag(r.example)}</b><span class="score" style="flex:0">${r.score.toFixed(2)}</span></div><div>${esc(r.text)}</div><div class="avgs">${a} · ${g}</div></div>`}).join('')||'<p class="s">아직 리뷰가 없습니다.</p>'}</div>${goodsRow(s)}`;
+ return `<div class="review"><div class="row" style="justify-content:space-between"><b style="flex:1"><a href="#/profile/${encodeURIComponent(r.user)}">${esc(r.user)}</a> ${exTag(r.example)}</b><span class="score" style="flex:0">${r.score.toFixed(2)}</span></div><div>${esc(r.text)}</div><div class="avgs">${a} · ${g}</div></div>`}).join('')||'<p class="s">아직 리뷰가 없습니다.</p>'}</div>${adSlot('song_bottom')}${goodsRow(s)}`;
  const dur=()=>D.played[key]?.dur||0;
  function upd(){const p=D.played[key]||{sec:0,dur:0};const pct=p.dur?Math.min(100,p.sec/p.dur*100):0;$('#pb').style.width=pct+'%';
   $('#vt').textContent=`청취 인증 ${Math.floor(pct)}% / 70%`+(p.dur?` · ${Math.floor(p.sec)}초 / ${Math.floor(p.dur)}초`:'');const ok=pct>=70||!!mine;
@@ -104,5 +104,6 @@ ${rowH('높게 평가한 곡',rated.slice(0,20))}
  $('#share').onclick=()=>{const l=location.href.split('#')[0]+'#/profile/'+encodeURIComponent(u);navigator.clipboard?.writeText(l).then(()=>alert('복사됨: '+l),()=>prompt('링크',l))}}
 function route(){clearInterval(timer);try{player?.destroy?.()}catch(e){}player=null;renderUsers();const h=location.hash.slice(2).split('?')[0].split('/');
  if(h[0]==='song')songPage(h[1]);else if(h[0]==='profile')profile(h[1]);else if(h[0]==='all')allPage(h[1]);else home();
+ adsFill();
  if(!location.hash.includes('?q='))scrollTo(0,0)}
 window.onhashchange=route;route();

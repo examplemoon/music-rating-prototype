@@ -5,6 +5,13 @@ const COUPANG_DISCLOSURE='이 페이지는 쿠팡 파트너스 활동의 일환�
 const FEATURED_IDS=['c005','c002','c010']; // 추천 음원(AD) 자리 — 현재는 예시 placeholder
 const LISN_PICK_IDS=['c004']; // 우리 노래(LisN Pick) 하우스 슬롯
 CATALOG.forEach(s=>{if(FEATURED_IDS.includes(s.id))s.featured=true;if(LISN_PICK_IDS.includes(s.id))s.lisnPick=true});
+const ADSENSE_CLIENT=''; // Google AdSense 게시자 ID (ca-pub-...). 비어 있으면 placeholder 박스만 표시
+const ADSENSE_SLOTS={home_top:'',home_mid:'',song_bottom:''}; // AdSense 광고 단위 slot ID
+// 광고 슬롯: YouTube 플레이어·평가 컨트롤과 인접하지 않은 위치에만 배치 (정책 + 평가 영역 분리)
+function adSlot(name){if(!ADSENSE_CLIENT)return `<div class="adslot" data-slot="${name}"><span>광고 · Google AdSense 자리 (예시)</span></div>`;
+ return `<div class="adwrap"><div class="adlbl">광고</div><ins class="adsbygoogle" style="display:block" data-ad-client="${ADSENSE_CLIENT}" data-ad-slot="${ADSENSE_SLOTS[name]||''}" data-ad-format="auto" data-full-width-responsive="true"></ins></div>`}
+function adsFill(){if(!ADSENSE_CLIENT)return;if(!document.getElementById('adsjs')){const t=document.createElement('script');t.id='adsjs';t.async=true;t.crossOrigin='anonymous';t.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='+encodeURIComponent(ADSENSE_CLIENT);t.onerror=()=>console.warn('AdSense 로드 실패');document.head.appendChild(t)}
+ document.querySelectorAll('ins.adsbygoogle:not([data-pushed])').forEach(el=>{el.dataset.pushed='1';try{(window.adsbygoogle=window.adsbygoogle||[]).push({})}catch(e){console.warn('AdSense push 실패',e)}})}
 const BAYES_M=3; // 베이지안 사전 평가 수 m
 const coupangUrl=q=>{let u='https://www.coupang.com/np/search?q='+encodeURIComponent(q);if(COUPANG_PARTNER_ID)u+='&lptag='+encodeURIComponent(COUPANG_PARTNER_ID);return u};
 function goodsRow(s){const items=s?[['💿','앨범',s.artist+' '+s.title+' 앨범'],['🎧','헤드셋','블루투스 헤드셋'],['🎵','이어폰','무선 이어폰']]:[['💿','K-pop 앨범','K-pop 앨범'],['🎧','헤드셋','노이즈캔슬링 헤드셋'],['🎵','이어폰','무선 이어폰'],['🔊','스피커','블루투스 스피커']];
@@ -37,12 +44,12 @@ function recBayes(){const {res}=scores();return Object.keys(res).sort((a,b)=>res
 const subRow=(title,sub,list,opts={})=>`<section class="sec"><h2>${title}${opts.more?`<a href="${opts.more}">전체 보기 ›</a>`:''}</h2><p class="sub">${sub}</p>${list.length?`<div class="hrow">${list.map((s,i)=>(opts.ad?adCard:cardH)(s,opts.ranked?i+1:0)).join('')}</div>`:`<p class="empty">${opts.empty||'표시할 곡이 아직 없어요.'}</p>`}</section>`;
 const adCard=s=>cardH(s).replace('<div class="cv">',`<div class="cv"><span class="adb">${s.lisnPick?'LisN Pick':'AD · 예시'}</span>`);
 function recHome(){const u=D.cur,cf=recCF(u),ex=recExtremes();const tog=D.extTog||'top';
- return subRow('추천 음원 <span class="tag ad">AD</span>','스폰서 자리(현재 예시 placeholder). 스폰서 여부는 평점·순위·추천 점수에 전혀 반영되지 않습니다.',all().filter(s=>s.featured),{ad:1})
- +subRow('우리 노래 <span class="tag">LisN Pick</span>','LisN 운영팀이 고른 하우스 추천 슬롯 (점수와 무관).',all().filter(s=>s.lisnPick),{ad:1})
- +subRow('당신의 평가 기반 추천',cf.cold?'평가 3곡 이상부터 추천해요.':cf.mode==='cf'?'아이템 기반 협업 필터링: 평가자별 평균을 뺀(중심화) 점수로 곡 간 유사도를 계산해, 내가 높게 준 곡과 비슷하게 평가된 곡을 예측합니다.':'유사 평가 데이터가 부족해 취향 카드의 장르별 평균이 높은 장르의 곡으로 보완했어요.',cf.list,{empty:`아직 평가가 ${D.reviews.filter(r=>r.user===u).length}곡이에요. 3곡 이상 평가하면 맞춤 추천이 열려요.`})
- +subRow('다시 들어볼 곡','내가 높게 준 곡(4점 이상 또는 내 평균+0.5 이상) 중 최근 14일간 듣지 않은 곡.',recRelisten(u),{empty:'높게 평가한 곡이 쌓이면 여기에 나타나요.'})
- +subRow('남들은 모르는 명곡','편향 보정 평균이 전체 평균보다 높지만 평가 수가 적은 곡 (popularity 필드가 있으면 그것도 사용).',recHidden())
- +subRow('신곡','발매 연도 최신순 (발매일 데이터가 없어 연도 기준).',[...all()].sort((a,b)=>(b.date||b.year+'').localeCompare(a.date||a.year+'')||(a.id<b.id?-1:1)).slice(0,20),{more:'#/all'})
- +`<section class="sec"><h2>평가 극과 극 <span><button class="chip ${tog==='top'?'on':''}" data-tog="top">최고</button> <button class="chip ${tog==='bottom'?'on':''}" data-tog="bottom">최저</button></span></h2><p class="sub">평가 2개 이상 곡의 단순 평균 ${tog==='top'?'상위':'하위'}. 평론가 점수 연동은 권한 협의 후 추가 예정(현재 미사용).</p><div class="hrow">${ex[tog].map(s=>cardH(s)).join('')||''}</div>${ex[tog].length?'':'<p class="empty">평가가 더 필요해요.</p>'}</section>`
- +subRow('LisN 알고리즘 명곡',`<span title="WR = v/(v+m)·R + m/(v+m)·C">베이지안 가중: WR = v/(v+m)·R + m/(v+m)·C (R=편향 보정 평균, v=평가 수, m=${BAYES_M}, C=전체 평균) ⓘ</span>`,recBayes(),{ranked:1})
- +goodsRow(null)}
+ return [subRow('추천 음원 <span class="tag ad">AD</span>','스폰서 자리(현재 예시 placeholder). 스폰서 여부는 평점·순위·추천 점수에 전혀 반영되지 않습니다.',all().filter(s=>s.featured),{ad:1})
+ ,subRow('우리 노래 <span class="tag">LisN Pick</span>','LisN 운영팀이 고른 하우스 추천 슬롯 (점수와 무관).',all().filter(s=>s.lisnPick),{ad:1})
+ ,subRow('당신의 평가 기반 추천',cf.cold?'평가 3곡 이상부터 추천해요.':cf.mode==='cf'?'아이템 기반 협업 필터링: 평가자별 평균을 뺀(중심화) 점수로 곡 간 유사도를 계산해, 내가 높게 준 곡과 비슷하게 평가된 곡을 예측합니다.':'유사 평가 데이터가 부족해 취향 카드의 장르별 평균이 높은 장르의 곡으로 보완했어요.',cf.list,{empty:`아직 평가가 ${D.reviews.filter(r=>r.user===u).length}곡이에요. 3곡 이상 평가하면 맞춤 추천이 열려요.`})
+ ,subRow('다시 들어볼 곡','내가 높게 준 곡(4점 이상 또는 내 평균+0.5 이상) 중 최근 14일간 듣지 않은 곡.',recRelisten(u),{empty:'높게 평가한 곡이 쌓이면 여기에 나타나요.'})
+ ,subRow('남들은 모르는 명곡','편향 보정 평균이 전체 평균보다 높지만 평가 수가 적은 곡 (popularity 필드가 있으면 그것도 사용).',recHidden())
+ ,subRow('신곡','발매 연도 최신순 (발매일 데이터가 없어 연도 기준).',[...all()].sort((a,b)=>(b.date||b.year+'').localeCompare(a.date||a.year+'')||(a.id<b.id?-1:1)).slice(0,20),{more:'#/all'})
+ ,`<section class="sec"><h2>평가 극과 극 <span><button class="chip ${tog==='top'?'on':''}" data-tog="top">최고</button> <button class="chip ${tog==='bottom'?'on':''}" data-tog="bottom">최저</button></span></h2><p class="sub">평가 2개 이상 곡의 단순 평균 ${tog==='top'?'상위':'하위'}. 평론가 점수 연동은 권한 협의 후 추가 예정(현재 미사용).</p><div class="hrow">${ex[tog].map(s=>cardH(s)).join('')||''}</div>${ex[tog].length?'':'<p class="empty">평가가 더 필요해요.</p>'}</section>`
+ ,subRow('LisN 알고리즘 명곡',`<span title="WR = v/(v+m)·R + m/(v+m)·C">베이지안 가중: WR = v/(v+m)·R + m/(v+m)·C (R=편향 보정 평균, v=평가 수, m=${BAYES_M}, C=전체 평균) ⓘ</span>`,recBayes(),{ranked:1})
+ ,goodsRow(null)].map((x,i,a)=>x+((i+1)%3===0&&i<a.length-1?adSlot('home_mid'):'')).join('')}
