@@ -93,7 +93,7 @@ function profile(u){u=decodeURIComponent(u||D.cur);const st=userStats(u);const r
  const rated=D.reviews.filter(r=>r.user===u).sort((a,b)=>b.score-a.score).map(r=>song(r.songId)).filter(Boolean);
  $('#app').innerHTML=`<a class="back" href="#/">← 홈</a><div class="card taste" style="margin-top:10px"><div class="s" style="color:#cdd">음악 취향 카드</div><h2 style="margin:2px 0">${esc(u)} ${u.startsWith('예시_')?'<span class="tag ex">예시</span>':''}</h2>
 <div class="s" style="color:#dde">평가 ${st.n}곡 · 전체 평균 ${st.n<10?'평가 수 부족':st.all.toFixed(2)+'점'}</div><div style="margin-top:12px">${rows.map(([g,a,n])=>`<div class="gbar"><span>${g}</span><div class="bar"><i style="width:${a/5*100}%"></i></div><span>${a.toFixed(2)} <small>(${n})</small></span></div>`).join('')||'<p>아직 평가가 없어요</p>'}</div>
-<div class="note" style="color:#ccd;margin-top:10px">귀로평가 · 끝까지 듣고 남긴 평점</div></div><div class="pad"><button id="share" class="ghost">카드 공유 링크 복사</button></div>
+<div class="note" style="color:#ccd;margin-top:10px">LisN · 끝까지 듣고 남긴 평점</div></div><div class="pad"><button id="share" class="ghost">카드 공유 링크 복사</button></div>
 ${rowH('높게 평가한 곡',rated.slice(0,20))}
 <div class="card" style="margin-top:14px"><h3 style="margin-top:0">사용자</h3>${D.users.map(x=>`<a href="#/profile/${encodeURIComponent(x)}" class="chip" style="margin:0 4px 6px 0">${esc(x)}</a>`).join('')}</div>`;
  $('#share').onclick=()=>{const l=location.href.split('#')[0]+'#/profile/'+encodeURIComponent(u);navigator.clipboard?.writeText(l).then(()=>alert('복사됨: '+l),()=>prompt('링크',l))}}
