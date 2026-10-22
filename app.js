@@ -1,47 +1,72 @@
 const GENRES=['K-pop','힙합','R&B','인디','발라드','록','일렉트로닉','기타'];
-const K='gwiro_v1';let D=JSON.parse(localStorage.getItem(K)||'null')||{users:['나'],cur:'나',songs:[],reviews:[],played:{}};
+const K='gwiro_v2';
+let D=JSON.parse(localStorage.getItem(K)||'null')||{users:['나'],cur:'나',songs:[],reviews:[],played:{}};
 const save=()=>localStorage.setItem(K,JSON.stringify(D));const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DEBUG=new URLSearchParams(location.search).get('debug')==='1';
 function parseYT(u){u=u.trim();let m=u.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/);if(m)return m[1];return /^[\w-]{11}$/.test(u)?u:null}
 const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;const f2=x=>x==null?'-':x.toFixed(2);
+const all=()=>[...D.songs,...CATALOG];const song=id=>all().find(s=>s.id===id);
 function userStats(u,genre){const rs=D.reviews.filter(r=>r.user===u);const g=rs.filter(r=>song(r.songId)?.genre===genre);
  return {all:mean(rs.map(r=>r.score)),n:rs.length,g:mean(g.map(r=>r.score)),gn:g.length}}
-const song=id=>D.songs.find(s=>s.id===id);const exTag=x=>x?'<span class="tag ex">예시 데이터</span>':'';
-const thumb=s=>s.vid?`<img src="https://i.ytimg.com/vi/${s.vid}/mqdefault.jpg" alt="" onerror="this.outerHTML='<div class=ph>🎵</div>'">`:'<div class="ph">예시<br>영상 없음</div>';
+const exTag=x=>x?'<span class="tag ex">예시</span>':'';
+const cover=v=>v?`<img loading="lazy" src="https://i.ytimg.com/vi/${v}/hqdefault.jpg" alt="">`:'';
+const revs=id=>D.reviews.filter(r=>r.songId===id);
+function avgLine(id){const rs=revs(id);return rs.length?`<div class="avg">평균 ★ ${f2(mean(rs.map(r=>r.score)))} <span class="s">(${rs.length})</span></div>`:'<div class="avg none">아직 평가 없음</div>'}
+const cardH=(s,rank)=>`<a class="cc" href="#/song/${s.id}"><div class="cv">${cover(s.vid)}${rank?`<span class="rank">${rank}</span>`:''}</div><div class="t">${esc(s.title)}</div><div class="s">${esc(s.artist)} · ${s.year||''}${s.user?' · 추가곡':''}</div>${avgLine(s.id)}</a>`;
+const rowH=(title,list,more,ranked)=>list.length?`<section class="sec"><h2>${title}${more?`<a href="${more}">전체 보기 ›</a>`:''}</h2><div class="hrow">${list.map((s,i)=>cardH(s,ranked?i+1:0)).join('')}</div></section>`:'';
 function renderUsers(){$('#userSel').innerHTML=D.users.map(u=>`<option ${u===D.cur?'selected':''}>${esc(u)}</option>`).join('')}
 $('#userSel').onchange=e=>{D.cur=e.target.value;save();route()};
 $('#addUser').onclick=()=>{const n=prompt('새 사용자 이름');if(n&&n.trim()){const v=n.trim();if(!D.users.includes(v))D.users.push(v);D.cur=v;save();renderUsers();route()}};
 let ytReady=false,ytCb=[];window.onYouTubeIframeAPIReady=()=>{ytReady=true;ytCb.forEach(f=>f());ytCb=[]};
 (function(){const t=document.createElement('script');t.src='https://www.youtube.com/iframe_api';t.onerror=()=>console.warn('YouTube API 로드 실패');document.head.appendChild(t)})();
 let timer=null,player=null;
-function home(){const list=D.songs.map(s=>{const rs=D.reviews.filter(r=>r.songId===s.id);return `<a class="song" href="#/song/${s.id}">${thumb(s)}<div class="meta"><div class="t">${esc(s.title)}</div><div class="s">${esc(s.artist)} · <span class="tag">${esc(s.genre)}</span>${exTag(s.example)}</div></div><div class="score">${rs.length?f2(mean(rs.map(r=>r.score))):'—'}<div class="s">${rs.length}명</div></div></a>`}).join('')||'<p class="s">아직 곡이 없습니다. 곡을 추가하거나 데모 데이터를 불러오세요.</p>';
-$('#app').innerHTML=`<div class="card"><h3 style="margin-top:0">곡 추가</h3><label>YouTube URL</label><input id="url" placeholder="https://youtu.be/... / watch?v= / shorts / music.youtube.com">
-<div class="row"><div><label>제목</label><input id="title"></div><div><label>아티스트</label><input id="artist"></div><div><label>장르</label><select id="genre" class="full">${GENRES.map(g=>`<option>${g}</option>`).join('')}</select></div></div>
-<div class="row" style="margin-top:12px"><button id="add">추가</button><button id="demo" class="ghost">데모 데이터 불러오기</button><button id="reset" class="ghost">초기화</button></div><div id="msg" class="err"></div></div>
-<div class="card"><h3 style="margin-top:0">곡 목록</h3>${list}</div><p class="note">평점은 영상의 70% 이상을 실제로 재생해야 남길 수 있습니다.</p>`;
-$('#add').onclick=()=>{const vid=parseYT($('#url').value),t=$('#title').value.trim(),a=$('#artist').value.trim();
- if(!vid)return $('#msg').textContent='올바른 YouTube URL이 아닙니다.';if(!t||!a)return $('#msg').textContent='제목과 아티스트를 입력하세요.';
- const s={id:'s'+Date.now(),vid,title:t,artist:a,genre:$('#genre').value};D.songs.unshift(s);save();location.hash='#/song/'+s.id};
-$('#demo').onclick=seed;$('#reset').onclick=()=>{if(confirm('모든 데이터를 삭제할까요?')){localStorage.removeItem(K);location.reload()}}}
-function seed(){D.songs=D.songs.filter(s=>!s.example);D.reviews=D.reviews.filter(r=>!r.example);
- const S=[['9bZkp7q19f0','강남스타일','PSY','K-pop'],['gdZLi9oWNZg','Dynamite','BTS','K-pop'],['IHNzOHi8sJs','뚜두뚜두 (DDU-DU DDU-DU)','BLACKPINK','K-pop'],[null,'예시 곡 A','예시 아티스트 1','K-pop'],[null,'예시 곡 B','예시 아티스트 2','K-pop'],
- [null,'예시 힙합 1','예시 래퍼 1','힙합'],[null,'예시 힙합 2','예시 래퍼 2','힙합'],[null,'예시 힙합 3','예시 래퍼 3','힙합'],[null,'예시 힙합 4','예시 래퍼 4','힙합'],[null,'예시 힙합 5','예시 래퍼 5','힙합'],
- [null,'예시 발라드 1','예시 가수 1','발라드'],[null,'예시 R&B 1','예시 가수 2','R&B']];
- const U={'예시_후한평론가':[4.5,.4,{}],'예시_짠손':[2.25,.4,{'힙합':-.5}],'예시_힙합헤드':[3.25,.4,{'힙합':1.25,'K-pop':-.5}],'예시_신규':[3.5,.3,{}]};
- let rnd=7;const r=()=>(rnd=(rnd*9301+49297)%233280)/233280;
- S.forEach((x,i)=>D.songs.push({id:'ex'+i,vid:x[0],title:x[1],artist:x[2],genre:x[3],example:true}));
- Object.entries(U).forEach(([u,[b,v,adj]])=>{if(!D.users.includes(u))D.users.push(u);S.forEach((x,i)=>{if(u==='예시_신규'&&i>3)return;
-  let sc=Math.round((b+(adj[x[3]]||0)+(r()-.5)*2*v+(i%3-1)*.25)*4)/4;sc=Math.min(5,Math.max(1,sc));
-  D.reviews.push({songId:'ex'+i,user:u,score:sc,text:['좋아요, 반복 재생각','후렴이 약함','사운드가 깔끔','기대 이하','명곡 인정'][(i+u.length)%5]+' (예시 리뷰)',ts:Date.now()-i*36e5,example:true})})});
+function popular(){const S=all();const c=s=>revs(s.id).length;const rated=S.filter(c).sort((a,b)=>c(b)-c(a)||b.year-a.year);
+ return [...rated,...S.filter(s=>!c(s)).slice(0,Math.max(0,20-rated.length))].slice(0,20)}
+function home(){const q=(new URLSearchParams(location.hash.split('?')[1]||'').get('q')||'');
+ const S=all();
+ let body;
+ if(q){const k=q.toLowerCase().replace(/\s/g,'');const res=S.filter(s=>(s.title+s.artist).toLowerCase().replace(/\s/g,'').includes(k));
+  body=`<section class="sec"><h2>‘${esc(q)}’ 검색 결과 ${res.length}곡</h2></section>${res.length?`<div class="grid">${res.map(s=>cardH(s)).join('')}</div>`:'<p class="empty">검색 결과가 없어요. 오른쪽 위 “곡 추가”로 직접 추가할 수 있어요.</p>'}`}
+ else{const latest=[...S].sort((a,b)=>b.year-a.year||(a.id<b.id?-1:1)).slice(0,20);
+  const mine=D.songs.length?rowH('내가 추가한 곡',D.songs):'';
+  body=rowH('지금 많이 평가하는 곡',popular(),'#/all',true)+rowH('최신 곡',latest,'#/all')+mine+GENRES.map(g=>{const l=S.filter(s=>s.genre===g);return rowH(g,l.slice(0,20),'#/all/'+encodeURIComponent(g))}).join('')}
+ $('#app').innerHTML=`<div class="search"><input id="q" type="search" placeholder="곡 제목, 아티스트 검색" value="${esc(q)}" enterkeyhint="search"></div>
+<div class="toolbar"><a class="chip" href="#/all">전체 보기 (${S.length})</a><button class="chip" id="addBtn">＋ 곡 추가</button><button class="chip" id="demo">예시 평가 불러오기</button><button class="chip" id="reset">초기화</button></div>${body}
+<p class="note pad" style="margin-top:20px">평점은 영상의 70% 이상을 실제로 재생해야 남길 수 있습니다. 예시 평가·예시 사용자는 데모용 가상 데이터이며, 곡 목록은 실제 곡입니다.</p>`;
+ let tm;$('#q').oninput=e=>{clearTimeout(tm);tm=setTimeout(()=>{const v=e.target.value.trim();history.replaceState(null,'',v?'#/?q='+encodeURIComponent(v):'#/');home();const i=$('#q');i.focus();i.setSelectionRange(i.value.length,i.value.length)},250)};
+ $('#addBtn').onclick=addDialog;$('#demo').onclick=seed;$('#reset').onclick=()=>{if(confirm('평가·사용자·추가곡 데이터를 모두 삭제할까요?')){localStorage.removeItem(K);location.hash='#/';location.reload()}}}
+function addDialog(){const d=document.createElement('dialog');d.innerHTML=`<h3 style="margin:0 0 4px">곡 추가</h3><div class="s">카탈로그에 없는 곡을 YouTube 링크로 추가하세요.</div>
+<label>YouTube URL</label><input id="url" placeholder="youtu.be/... · watch?v= · shorts · music.youtube.com">
+<div class="row"><div><label>제목</label><input id="title"></div><div><label>아티스트</label><input id="artist"></div></div>
+<div class="row"><div><label>장르</label><select id="genre" class="full">${GENRES.map(g=>`<option>${g}</option>`).join('')}</select></div><div><label>발매 연도</label><input id="year" type="number" inputmode="numeric" value="${new Date().getFullYear()}"></div></div>
+<div id="msg" class="err"></div><div class="row" style="margin-top:12px"><button class="ghost" id="cx">취소</button><button id="add">추가</button></div>`;
+ document.body.appendChild(d);d.showModal();d.querySelector('#cx').onclick=()=>d.remove();d.addEventListener('close',()=>d.remove());
+ d.querySelector('#add').onclick=()=>{const g=x=>d.querySelector(x).value.trim();const vid=parseYT(g('#url')),t=g('#title'),a=g('#artist');
+  if(!vid)return d.querySelector('#msg').textContent='올바른 YouTube URL이 아닙니다.';if(!t||!a)return d.querySelector('#msg').textContent='제목과 아티스트를 입력하세요.';
+  const s={id:'s'+Date.now(),vid,title:t,artist:a,genre:g('#genre'),year:+g('#year')||new Date().getFullYear(),user:true};D.songs.unshift(s);save();d.remove();location.hash='#/song/'+s.id}}
+function allPage(genre){genre=genre?decodeURIComponent(genre):'';const S=all().filter(s=>!genre||s.genre===genre).sort((a,b)=>b.year-a.year);
+ $('#app').innerHTML=`<a class="back" href="#/">← 홈</a><section class="sec" style="margin-top:8px"><h2>전체 곡 <span class="s">${S.length}곡</span></h2></section>
+<div class="filters"><a class="chip ${genre?'':'on'}" href="#/all">전체</a>${GENRES.map(g=>`<a class="chip ${g===genre?'on':''}" href="#/all/${encodeURIComponent(g)}">${g}</a>`).join('')}</div>
+<div class="grid">${S.map(s=>cardH(s)).join('')||'<p class="empty">곡이 없어요.</p>'}</div>`}
+function seed(){D.reviews=D.reviews.filter(r=>!r.example);
+ const S=CATALOG.filter((_,i)=>i%3===0||i<12).slice(0,48);
+ const U={'예시_후한평론가':[4.4,.4,{}],'예시_짠손':[2.4,.4,{'힙합':-.5}],'예시_힙합헤드':[3.2,.4,{'힙합':1.2,'K-pop':-.4}],'예시_발라드러버':[3.4,.4,{'발라드':1,'R&B':.6}],'예시_신규':[3.5,.3,{}]};
+ let rnd=7;const r=()=>(rnd=(rnd*9301+49297)%233280)/233280;const T=['후렴이 계속 맴돌아요','사운드가 깔끔','기대 이하','명곡 인정','뮤비까지 완벽','가사가 와닿음','무난한 편'];
+ Object.entries(U).forEach(([u,[b,v,adj]],ui)=>{if(!D.users.includes(u))D.users.push(u);S.forEach((x,i)=>{if(u==='예시_신규'&&i>3)return;if((i+ui)%4===3)return;
+  let sc=Math.round((b+(adj[x.genre]||0)+(r()-.5)*2*v+(i%3-1)*.25)*4)/4;sc=Math.min(5,Math.max(1,sc));
+  D.reviews.push({songId:x.id,user:u,score:sc,text:T[(i+u.length)%T.length]+' (예시 리뷰)',ts:Date.now()-i*36e5-ui*6e5,example:true})})});
  save();renderUsers();route()}
-function songPage(id){const s=song(id);if(!s)return home();const key=D.cur+'|'+id;const rs=D.reviews.filter(r=>r.songId===id);
+function songPage(id){const s=song(id);if(!s)return home();const key=D.cur+'|'+id;const rs=revs(id);
  const raw=mean(rs.map(r=>r.score));const gm=mean(D.reviews.map(r=>r.score));
  const adj=rs.length?mean(rs.map(r=>r.score-userStats(r.user).all))+gm:null;const mine=rs.find(r=>r.user===D.cur);
- $('#app').innerHTML=`<a href="#/">← 목록</a><h2 style="margin:8px 0 2px">${esc(s.title)}</h2><div class="s">${esc(s.artist)} · <span class="tag">${esc(s.genre)}</span>${exTag(s.example)}</div>
-<div class="card" style="margin-top:12px">${s.vid?'<div class="player"><div id="yt"></div></div>':'<div class="player"><div class="ph" style="width:100%;height:100%;font-size:1rem">예시 데이터 — 연결된 영상 없음</div></div>'}
-<div style="margin-top:10px" class="s" id="vt">청취 인증 0% / 70%</div><div class="bar"><i id="pb" style="width:0"></i><div class="goal"></div></div><div class="note">재생 중인 시간만 집계되며, 앞으로 건너뛴 구간은 포함되지 않습니다.</div>
-${DEBUG?'<div class="card debug" style="margin-top:10px"><b>디버그 모드</b> (?debug=1) — 재생 시뮬레이션 <button id="sim">+30초 재생</button></div>':''}</div>
+ $('#app').innerHTML=`<a class="back" href="javascript:history.length>1?history.back():location.hash='#/'">← 뒤로</a>
+<div class="hero"><div class="bg" style="background-image:url(https://i.ytimg.com/vi/${s.vid}/hqdefault.jpg)"></div><div class="cv">${cover(s.vid)}</div>
+<div style="min-width:0"><h1>${esc(s.title)}</h1><div class="s" style="color:#cfd3dd">${esc(s.artist)}</div><div class="s">${s.year||''} · <span class="tag">${esc(s.genre)}</span>${s.user?'<span class="tag">사용자 추가곡</span>':''}</div>
+<div style="margin-top:6px;font-weight:800;color:#ff8fb1">${rs.length?`평균 ★ ${f2(raw)} <span class="s">(${rs.length}명)</span>`:'<span class="s">아직 평가 없음</span>'}</div></div></div>
+<div class="card" style="margin-top:6px"><div class="player"><div id="yt"></div></div>
+<div style="margin-top:10px" class="s" id="vt">청취 인증 0% / 70%</div><div class="bar"><i id="pb" style="width:0"></i><div class="goal"></div></div><div class="note">재생 중인 시간만 집계되며, 앞으로 건너뛴 구간은 포함되지 않습니다.${s.channel?` · 영상: ${esc(s.channel)}`:''}</div>
+${DEBUG?'<div class="card debug" style="margin:10px 0 0"><b>디버그 모드</b> (?debug=1) — <button id="sim" class="sm">+30초 재생</button></div>':''}</div>
 <div class="card" id="rate"><h3 style="margin-top:0">${mine?'내 평가 수정':'평가하기'} <span class="s">(${esc(D.cur)})</span></h3><div id="lockmsg" class="s">🔒 70% 이상 들어야 평가할 수 있어요.</div>
 <div id="rc"><div class="big" id="sv">${(mine?.score??3).toFixed(2)}</div><input type="range" id="sl" min="1" max="5" step="0.25" value="${mine?.score??3}" style="width:100%">
 <div class="row s" style="justify-content:space-between"><span style="flex:0">1.00</span><span style="flex:0">5.00</span></div><label>한줄평</label><input id="rt" maxlength="120" value="${esc(mine?.text||'')}" placeholder="짧은 리뷰를 남겨주세요"><button id="sub" style="margin-top:10px;width:100%">평가 등록</button></div></div>
@@ -58,19 +83,21 @@ ${DEBUG?'<div class="card debug" style="margin-top:10px"><b>디버그 모드</b>
  $('#sl').oninput=e=>$('#sv').textContent=(+e.target.value).toFixed(2);
  $('#sub').onclick=()=>{const sc=+$('#sl').value;const t=$('#rt').value.trim();D.reviews=D.reviews.filter(r=>!(r.user===D.cur&&r.songId===id));D.reviews.push({songId:id,user:D.cur,score:sc,text:t,ts:Date.now()});save();route()};
  if(DEBUG)$('#sim').onclick=()=>addSec(30,dur()||200);
- upd();if(!s.vid)return;
- const mk=()=>{player=new YT.Player('yt',{videoId:s.vid,playerVars:{playsinline:1,rel:0},events:{onReady:()=>{addSec(0,player.getDuration())}}});
+ upd();
+ const mk=()=>{if(!$('#yt'))return;player=new YT.Player('yt',{videoId:s.vid,playerVars:{playsinline:1,rel:0},events:{onReady:()=>{addSec(0,player.getDuration())}}});
   let last=null,lastWall=null;timer=setInterval(()=>{if(!player?.getPlayerState)return;const st=player.getPlayerState(),ct=player.getCurrentTime(),now=performance.now();
    if(st===1&&last!=null){const d=ct-last,wall=(now-lastWall)/1000*(player.getPlaybackRate?.()||1);if(d>0&&d<=wall+0.6)addSec(d,player.getDuration())}
    last=st===1?ct:null;lastWall=now},500)};
  ytReady?mk():ytCb.push(mk)}
 function profile(u){u=decodeURIComponent(u||D.cur);const st=userStats(u);const rows=GENRES.map(g=>{const x=userStats(u,g);return [g,x.g,x.gn]}).filter(x=>x[2]);
- $('#app').innerHTML=`<a href="#/">← 목록</a><div class="card taste" style="margin-top:10px"><div class="s" style="color:#cdd">내 음악 취향 카드</div><h2 style="margin:2px 0">${esc(u)} ${u.startsWith('예시_')?'<span class="tag ex">예시 데이터</span>':''}</h2>
+ const rated=D.reviews.filter(r=>r.user===u).sort((a,b)=>b.score-a.score).map(r=>song(r.songId)).filter(Boolean);
+ $('#app').innerHTML=`<a class="back" href="#/">← 홈</a><div class="card taste" style="margin-top:10px"><div class="s" style="color:#cdd">음악 취향 카드</div><h2 style="margin:2px 0">${esc(u)} ${u.startsWith('예시_')?'<span class="tag ex">예시</span>':''}</h2>
 <div class="s" style="color:#dde">평가 ${st.n}곡 · 전체 평균 ${st.n<10?'평가 수 부족':st.all.toFixed(2)+'점'}</div><div style="margin-top:12px">${rows.map(([g,a,n])=>`<div class="gbar"><span>${g}</span><div class="bar"><i style="width:${a/5*100}%"></i></div><span>${a.toFixed(2)} <small>(${n})</small></span></div>`).join('')||'<p>아직 평가가 없어요</p>'}</div>
-<div class="note" style="color:#ccd;margin-top:10px">귀로평가 · 끝까지 듣고 남긴 평점</div></div><button id="share" class="ghost">카드 공유 링크 복사</button>
-<div class="card" style="margin-top:12px"><h3 style="margin-top:0">사용자</h3>${D.users.map(x=>`<a href="#/profile/${encodeURIComponent(x)}" class="tag">${esc(x)}</a>`).join(' ')}</div>`;
+<div class="note" style="color:#ccd;margin-top:10px">귀로평가 · 끝까지 듣고 남긴 평점</div></div><div class="pad"><button id="share" class="ghost">카드 공유 링크 복사</button></div>
+${rowH('높게 평가한 곡',rated.slice(0,20))}
+<div class="card" style="margin-top:14px"><h3 style="margin-top:0">사용자</h3>${D.users.map(x=>`<a href="#/profile/${encodeURIComponent(x)}" class="chip" style="margin:0 4px 6px 0">${esc(x)}</a>`).join('')}</div>`;
  $('#share').onclick=()=>{const l=location.href.split('#')[0]+'#/profile/'+encodeURIComponent(u);navigator.clipboard?.writeText(l).then(()=>alert('복사됨: '+l),()=>prompt('링크',l))}}
-function route(){clearInterval(timer);try{player?.destroy?.()}catch(e){}player=null;renderUsers();const h=location.hash.slice(2).split('/');
- if(h[0]==='song')songPage(h[1]);else if(h[0]==='profile')profile(h[1]);else home();
- if(!$('#myp')){const a=document.createElement('a');a.id='myp';a.href='#/profile/';a.textContent='내 프로필';a.className='tag';$('.user').prepend(a)}scrollTo(0,0)}
+function route(){clearInterval(timer);try{player?.destroy?.()}catch(e){}player=null;renderUsers();const h=location.hash.slice(2).split('?')[0].split('/');
+ if(h[0]==='song')songPage(h[1]);else if(h[0]==='profile')profile(h[1]);else if(h[0]==='all')allPage(h[1]);else home();
+ if(!location.hash.includes('?q='))scrollTo(0,0)}
 window.onhashchange=route;route();
