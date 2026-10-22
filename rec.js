@@ -6,7 +6,13 @@ const FEATURED_IDS=['c005','c002','c010']; // 추천 음원(AD) 자리 — 현�
 const LISN_PICK_IDS=['c004']; // 우리 노래(LisN Pick) 하우스 슬롯
 CATALOG.forEach(s=>{if(FEATURED_IDS.includes(s.id))s.featured=true;if(LISN_PICK_IDS.includes(s.id))s.lisnPick=true});
 const ADSENSE_CLIENT=''; // Google AdSense 게시자 ID (ca-pub-...). 비어 있으면 placeholder 박스만 표시
-const ADSENSE_SLOTS={home_top:'',home_mid:'',song_bottom:''}; // AdSense 광고 단위 slot ID
+const ADSENSE_SLOTS={home_top:'',home_mid:'',song_bottom:'',in_row:''}; // AdSense 광고 단위 slot ID
+const ADS_IN_ROW_EVERY=6; // 가로 곡 행/전체 곡 그리드: 곡 카드 N개마다 광고 카드 1개 (행당 최대 ADS_IN_ROW_MAX, N개 미만 행은 생략)
+const ADS_IN_ROW_MAX=2;
+// 행 내 광고 카드: 곡 카드와 같은 크기, 곡 링크 아님, 순위 번호에 영향 없음(순위는 곡 인덱스로 먼저 계산 후 삽입)
+function inRowAd(){const body=ADSENSE_CLIENT?`<ins class="adsbygoogle" style="display:block;width:100%;height:100%" data-ad-client="${ADSENSE_CLIENT}" data-ad-slot="${ADSENSE_SLOTS.in_row||''}" data-ad-format="auto"></ins>`:`<span class="adph">광고 · Google AdSense 자리 (예시)</span>`;
+ return `<div class="cc adcc" aria-label="광고" role="complementary"><div class="cv"><span class="adb">AD</span>${body}</div><div class="t">광고</div><div class="s">Sponsored</div></div>`}
+function withRowAds(cards){if(cards.length<ADS_IN_ROW_EVERY)return cards.join('');let out=[],n=0;cards.forEach((c,i)=>{out.push(c);if((i+1)%ADS_IN_ROW_EVERY===0&&i<cards.length-1&&n<ADS_IN_ROW_MAX){out.push(inRowAd());n++}});return out.join('')}
 // 광고 슬롯: YouTube 플레이어·평가 컨트롤과 인접하지 않은 위치에만 배치 (정책 + 평가 영역 분리)
 function adSlot(name){if(!ADSENSE_CLIENT)return `<div class="adslot" data-slot="${name}"><span>광고 · Google AdSense 자리 (예시)</span></div>`;
  return `<div class="adwrap"><div class="adlbl">광고</div><ins class="adsbygoogle" style="display:block" data-ad-client="${ADSENSE_CLIENT}" data-ad-slot="${ADSENSE_SLOTS[name]||''}" data-ad-format="auto" data-full-width-responsive="true"></ins></div>`}
@@ -41,7 +47,7 @@ function recHidden(){const {res,C}=scores();const ids=Object.keys(res);const vs=
 function recExtremes(){const {res}=scores();const ids=Object.keys(res).filter(i=>res[i].v>=2);const by=k=>[...ids].sort((a,b)=>res[b][k]-res[a][k]);const t=by('raw');
  return {top:t.slice(0,15).map(song).filter(Boolean),bottom:t.reverse().slice(0,15).map(song).filter(Boolean)}}
 function recBayes(){const {res}=scores();return Object.keys(res).sort((a,b)=>res[b].bayes-res[a].bayes).map(song).filter(Boolean).slice(0,20)}
-const subRow=(title,sub,list,opts={})=>`<section class="sec"><h2>${title}${opts.more?`<a href="${opts.more}">전체 보기 ›</a>`:''}</h2><p class="sub">${sub}</p>${list.length?`<div class="hrow">${list.map((s,i)=>(opts.ad?adCard:cardH)(s,opts.ranked?i+1:0)).join('')}</div>`:`<p class="empty">${opts.empty||'표시할 곡이 아직 없어요.'}</p>`}</section>`;
+const subRow=(title,sub,list,opts={})=>`<section class="sec"><h2>${title}${opts.more?`<a href="${opts.more}">전체 보기 ›</a>`:''}</h2><p class="sub">${sub}</p>${list.length?`<div class="hrow">${withRowAds(list.map((s,i)=>(opts.ad?adCard:cardH)(s,opts.ranked?i+1:0)))}</div>`:`<p class="empty">${opts.empty||'표시할 곡이 아직 없어요.'}</p>`}</section>`;
 const adCard=s=>cardH(s).replace('<div class="cv">',`<div class="cv"><span class="adb">${s.lisnPick?'LisN Pick':'AD · 예시'}</span>`);
 function recHome(){const u=D.cur,cf=recCF(u),ex=recExtremes();const tog=D.extTog||'top';
  return [subRow('추천 음원 <span class="tag ad">AD</span>','스폰서 자리(현재 예시 placeholder). 스폰서 여부는 평점·순위·추천 점수에 전혀 반영되지 않습니다.',all().filter(s=>s.featured),{ad:1})

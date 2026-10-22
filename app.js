@@ -14,7 +14,7 @@ const cover=v=>v?`<img loading="lazy" src="https://i.ytimg.com/vi/${v}/hqdefault
 const revs=id=>D.reviews.filter(r=>r.songId===id);
 function avgLine(id){const rs=revs(id);return rs.length?`<div class="avg">평균 ★ ${f2(mean(rs.map(r=>r.score)))} <span class="s">(${rs.length})</span></div>`:'<div class="avg none">아직 평가 없음</div>'}
 const cardH=(s,rank)=>`<a class="cc" href="#/song/${s.id}"><div class="cv">${cover(s.vid)}${rank?`<span class="rank">${rank}</span>`:''}</div><div class="t">${esc(s.title)}</div><div class="s">${esc(s.artist)} · ${s.year||''}${s.user?' · 추가곡':''}</div>${avgLine(s.id)}</a>`;
-const rowH=(title,list,more,ranked)=>list.length?`<section class="sec"><h2>${title}${more?`<a href="${more}">전체 보기 ›</a>`:''}</h2><div class="hrow">${list.map((s,i)=>cardH(s,ranked?i+1:0)).join('')}</div></section>`:'';
+const rowH=(title,list,more,ranked)=>list.length?`<section class="sec"><h2>${title}${more?`<a href="${more}">전체 보기 ›</a>`:''}</h2><div class="hrow">${withRowAds(list.map((s,i)=>cardH(s,ranked?i+1:0)))}</div></section>`:'';
 function renderUsers(){$('#userSel').innerHTML=D.users.map(u=>`<option ${u===D.cur?'selected':''}>${esc(u)}</option>`).join('')}
 $('#userSel').onchange=e=>{D.cur=e.target.value;save();route()};
 $('#addUser').onclick=()=>{const n=prompt('새 사용자 이름');if(n&&n.trim()){const v=n.trim();if(!D.users.includes(v))D.users.push(v);D.cur=v;save();renderUsers();route()}};
@@ -49,7 +49,7 @@ function addDialog(){const d=document.createElement('dialog');d.innerHTML=`<h3 s
 function allPage(genre){genre=genre?decodeURIComponent(genre):'';const S=all().filter(s=>!genre||s.genre===genre).sort((a,b)=>b.year-a.year);
  $('#app').innerHTML=`<a class="back" href="#/">← 홈</a><section class="sec" style="margin-top:8px"><h2>전체 곡 <span class="s">${S.length}곡</span></h2></section>
 <div class="filters"><a class="chip ${genre?'':'on'}" href="#/all">전체</a>${GENRES.map(g=>`<a class="chip ${g===genre?'on':''}" href="#/all/${encodeURIComponent(g)}">${g}</a>`).join('')}</div>
-<div class="grid">${S.map(s=>cardH(s)).join('')||'<p class="empty">곡이 없어요.</p>'}</div>`}
+<div class="grid">${withRowAds(S.map(s=>cardH(s)))||'<p class="empty">곡이 없어요.</p>'}</div>`}
 function seed(){D.reviews=D.reviews.filter(r=>!r.example);D.lastListened=D.lastListened||{};
  // 예시 데이터: 6명의 가상 사용자, 카탈로그 다수 곡. 일부 곡은 평가 수를 적게 두어 '숨은 명곡' 행이 채워지도록 함.
  const U={'예시_후한평론가':[4.4,.4,{}],'예시_짠손':[2.4,.4,{'힙합':-.5}],'예시_힙합헤드':[3.2,.4,{'힙합':1.2,'K-pop':-.4}],'예시_발라드러버':[3.4,.4,{'발라드':1,'R&B':.6}],'예시_인디키드':[3.3,.5,{'인디':1.1,'K-pop':-.3}],'예시_올라운더':[3.6,.6,{}],'예시_신규':[3.5,.3,{}]};
