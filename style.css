@@ -47,3 +47,8 @@ label{display:block;font-size:.8rem;color:#8b90a0;margin:8px 0 4px}.row{display:
 dialog{background:#14161c;color:inherit;border:1px solid #2a2e3a;border-radius:16px;padding:16px;width:min(92vw,440px)}dialog::backdrop{background:#000a}
 .back{display:inline-block;padding:4px 16px 0;color:#8b90a0;font-size:.9rem}
 @media(min-width:700px){.cc,.cc .cv{width:160px}.cc .cv{height:160px}.hero .cv{width:160px;height:160px}}
+.tagline{display:block;font-size:.66rem;font-weight:500;color:#8b90a0;letter-spacing:.05em}
+.sub{font-size:.74rem;color:#7d8292;margin:3px 0 0;padding:0 16px}.ad{background:#3b2a10;color:#ffb347}
+.adb{position:absolute;right:5px;top:5px;z-index:2;background:#ffb347;color:#1a1200;font-size:.66rem;font-weight:800;padding:1px 6px;border-radius:6px}
+.gc{flex:none;width:132px;background:#14161c;border:1px solid #262a35;border-radius:12px;padding:12px;scroll-snap-align:start}.gc .ge{font-size:2.2rem}.gc .s{font-size:.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.disc{color:#9aa0b0}.sec h2 .chip{font-size:.72rem;padding:3px 9px}

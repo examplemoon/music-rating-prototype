@@ -30,11 +30,12 @@ function home(){const q=(new URLSearchParams(location.hash.split('?')[1]||'').ge
   body=`<section class="sec"><h2>‘${esc(q)}’ 검색 결과 ${res.length}곡</h2></section>${res.length?`<div class="grid">${res.map(s=>cardH(s)).join('')}</div>`:'<p class="empty">검색 결과가 없어요. 오른쪽 위 “곡 추가”로 직접 추가할 수 있어요.</p>'}`}
  else{const latest=[...S].sort((a,b)=>b.year-a.year||(a.id<b.id?-1:1)).slice(0,20);
   const mine=D.songs.length?rowH('내가 추가한 곡',D.songs):'';
-  body=rowH('지금 많이 평가하는 곡',popular(),'#/all',true)+rowH('최신 곡',latest,'#/all')+mine+GENRES.map(g=>{const l=S.filter(s=>s.genre===g);return rowH(g,l.slice(0,20),'#/all/'+encodeURIComponent(g))}).join('')}
+  body=recHome()+rowH('지금 많이 평가하는 곡',popular(),'#/all',true)+mine+GENRES.map(g=>{const l=S.filter(s=>s.genre===g);return rowH(g,l.slice(0,20),'#/all/'+encodeURIComponent(g))}).join('')}
  $('#app').innerHTML=`<div class="search"><input id="q" type="search" placeholder="곡 제목, 아티스트 검색" value="${esc(q)}" enterkeyhint="search"></div>
 <div class="toolbar"><a class="chip" href="#/all">전체 보기 (${S.length})</a><button class="chip" id="addBtn">＋ 곡 추가</button><button class="chip" id="demo">예시 평가 불러오기</button><button class="chip" id="reset">초기화</button></div>${body}
 <p class="note pad" style="margin-top:20px">평점은 영상의 70% 이상을 실제로 재생해야 남길 수 있습니다. 예시 평가·예시 사용자는 데모용 가상 데이터이며, 곡 목록은 실제 곡입니다.</p>`;
  let tm;$('#q').oninput=e=>{clearTimeout(tm);tm=setTimeout(()=>{const v=e.target.value.trim();history.replaceState(null,'',v?'#/?q='+encodeURIComponent(v):'#/');home();const i=$('#q');i.focus();i.setSelectionRange(i.value.length,i.value.length)},250)};
+ document.querySelectorAll('[data-tog]').forEach(b=>b.onclick=()=>{D.extTog=b.dataset.tog;save();home()});
  $('#addBtn').onclick=addDialog;$('#demo').onclick=seed;$('#reset').onclick=()=>{if(confirm('평가·사용자·추가곡 데이터를 모두 삭제할까요?')){localStorage.removeItem(K);location.hash='#/';location.reload()}}}
 function addDialog(){const d=document.createElement('dialog');d.innerHTML=`<h3 style="margin:0 0 4px">곡 추가</h3><div class="s">카탈로그에 없는 곡을 YouTube 링크로 추가하세요.</div>
 <label>YouTube URL</label><input id="url" placeholder="youtu.be/... · watch?v= · shorts · music.youtube.com">
@@ -49,13 +50,17 @@ function allPage(genre){genre=genre?decodeURIComponent(genre):'';const S=all().f
  $('#app').innerHTML=`<a class="back" href="#/">← 홈</a><section class="sec" style="margin-top:8px"><h2>전체 곡 <span class="s">${S.length}곡</span></h2></section>
 <div class="filters"><a class="chip ${genre?'':'on'}" href="#/all">전체</a>${GENRES.map(g=>`<a class="chip ${g===genre?'on':''}" href="#/all/${encodeURIComponent(g)}">${g}</a>`).join('')}</div>
 <div class="grid">${S.map(s=>cardH(s)).join('')||'<p class="empty">곡이 없어요.</p>'}</div>`}
-function seed(){D.reviews=D.reviews.filter(r=>!r.example);
- const S=CATALOG.filter((_,i)=>i%3===0||i<12).slice(0,48);
- const U={'예시_후한평론가':[4.4,.4,{}],'예시_짠손':[2.4,.4,{'힙합':-.5}],'예시_힙합헤드':[3.2,.4,{'힙합':1.2,'K-pop':-.4}],'예시_발라드러버':[3.4,.4,{'발라드':1,'R&B':.6}],'예시_신규':[3.5,.3,{}]};
+function seed(){D.reviews=D.reviews.filter(r=>!r.example);D.lastListened=D.lastListened||{};
+ // 예시 데이터: 6명의 가상 사용자, 카탈로그 다수 곡. 일부 곡은 평가 수를 적게 두어 '숨은 명곡' 행이 채워지도록 함.
+ const U={'예시_후한평론가':[4.4,.4,{}],'예시_짠손':[2.4,.4,{'힙합':-.5}],'예시_힙합헤드':[3.2,.4,{'힙합':1.2,'K-pop':-.4}],'예시_발라드러버':[3.4,.4,{'발라드':1,'R&B':.6}],'예시_인디키드':[3.3,.5,{'인디':1.1,'K-pop':-.3}],'예시_올라운더':[3.6,.6,{}],'예시_신규':[3.5,.3,{}]};
  let rnd=7;const r=()=>(rnd=(rnd*9301+49297)%233280)/233280;const T=['후렴이 계속 맴돌아요','사운드가 깔끔','기대 이하','명곡 인정','뮤비까지 완벽','가사가 와닿음','무난한 편'];
- Object.entries(U).forEach(([u,[b,v,adj]],ui)=>{if(!D.users.includes(u))D.users.push(u);S.forEach((x,i)=>{if(u==='예시_신규'&&i>3)return;if((i+ui)%4===3)return;
-  let sc=Math.round((b+(adj[x.genre]||0)+(r()-.5)*2*v+(i%3-1)*.25)*4)/4;sc=Math.min(5,Math.max(1,sc));
-  D.reviews.push({songId:x.id,user:u,score:sc,text:T[(i+u.length)%T.length]+' (예시 리뷰)',ts:Date.now()-i*36e5-ui*6e5,example:true})})});
+ const q=CATALOG.map((x,i)=>(i*37)%17/17); // 곡별 '품질' 가상값
+ Object.entries(U).forEach(([u,[b,v,adj]],ui)=>{if(!D.users.includes(u))D.users.push(u);CATALOG.forEach((x,i)=>{if(u==='예시_신규'&&i>3)return;
+  const p=i%5===4?0.25:0.75;if(r()>p)return;
+  let sc=Math.round((b+(adj[x.genre]||0)+(r()-.5)*2*v+(q[i]-.5)*1.6)*4)/4;sc=Math.min(5,Math.max(1,sc));
+  D.reviews.push({songId:x.id,user:u,score:sc,text:T[(i+u.length)%T.length]+' (예시 리뷰)',ts:Date.now()-i*36e5-ui*6e5,example:true});
+  D.lastListened[u+'|'+x.id]=Date.now()-((i*7+ui*3)%40)*864e5})});
+ if(D.reviews.filter(x=>x.user===D.cur).length<3)D.cur='예시_발라드러버';
  save();renderUsers();route()}
 function songPage(id){const s=song(id);if(!s)return home();const key=D.cur+'|'+id;const rs=revs(id);
  const raw=mean(rs.map(r=>r.score));const gm=mean(D.reviews.map(r=>r.score));
@@ -74,12 +79,12 @@ ${DEBUG?'<div class="card debug" style="margin:10px 0 0"><b>디버그 모드</b>
 <p class="note">편향 보정: 각 평가에서 그 평가자의 개인 평균을 뺀 값의 평균에 전체 평균(${f2(gm)})을 더해, 후하거나 짠 평가자의 영향을 줄였습니다.</p></div>
 <div class="card"><h3 style="margin-top:0">리뷰</h3>${rs.sort((a,b)=>b.ts-a.ts).map(r=>{const st=userStats(r.user,s.genre);
  const a=st.n<10?'평균 평가 수 부족':`평균 ${st.all.toFixed(1)}점`,g=(st.n<10||st.gn<5)?`${s.genre} 평균 평가 수 부족`:`${s.genre} 평균 ${st.g.toFixed(1)}점`;
- return `<div class="review"><div class="row" style="justify-content:space-between"><b style="flex:1"><a href="#/profile/${encodeURIComponent(r.user)}">${esc(r.user)}</a> ${exTag(r.example)}</b><span class="score" style="flex:0">${r.score.toFixed(2)}</span></div><div>${esc(r.text)}</div><div class="avgs">${a} · ${g}</div></div>`}).join('')||'<p class="s">아직 리뷰가 없습니다.</p>'}</div>`;
+ return `<div class="review"><div class="row" style="justify-content:space-between"><b style="flex:1"><a href="#/profile/${encodeURIComponent(r.user)}">${esc(r.user)}</a> ${exTag(r.example)}</b><span class="score" style="flex:0">${r.score.toFixed(2)}</span></div><div>${esc(r.text)}</div><div class="avgs">${a} · ${g}</div></div>`}).join('')||'<p class="s">아직 리뷰가 없습니다.</p>'}</div>${goodsRow(s)}`;
  const dur=()=>D.played[key]?.dur||0;
  function upd(){const p=D.played[key]||{sec:0,dur:0};const pct=p.dur?Math.min(100,p.sec/p.dur*100):0;$('#pb').style.width=pct+'%';
   $('#vt').textContent=`청취 인증 ${Math.floor(pct)}% / 70%`+(p.dur?` · ${Math.floor(p.sec)}초 / ${Math.floor(p.dur)}초`:'');const ok=pct>=70||!!mine;
   $('#rc').classList.toggle('locked',!ok);$('#sub').disabled=!ok;$('#lockmsg').textContent=ok?(mine&&pct<70?'✅ 이미 청취 인증된 곡입니다.':'✅ 청취 인증 완료! 평가할 수 있어요.'):'🔒 70% 이상 들어야 평가할 수 있어요.'}
- const addSec=(d,du)=>{const p=D.played[key]||(D.played[key]={sec:0,dur:0});if(du)p.dur=du;p.sec=Math.min(p.dur||1e9,p.sec+d);save();upd()};
+ const addSec=(d,du)=>{const p=D.played[key]||(D.played[key]={sec:0,dur:0});if(d>0){(D.lastListened=D.lastListened||{})[key]=Date.now()}if(du)p.dur=du;p.sec=Math.min(p.dur||1e9,p.sec+d);save();upd()};
  $('#sl').oninput=e=>$('#sv').textContent=(+e.target.value).toFixed(2);
  $('#sub').onclick=()=>{const sc=+$('#sl').value;const t=$('#rt').value.trim();D.reviews=D.reviews.filter(r=>!(r.user===D.cur&&r.songId===id));D.reviews.push({songId:id,user:D.cur,score:sc,text:t,ts:Date.now()});save();route()};
  if(DEBUG)$('#sim').onclick=()=>addSec(30,dur()||200);
